@@ -275,6 +275,7 @@ async def on_ready():
         type=discord.ActivityType.watching, name="la communauté 👀"))
     bot.add_view(TicketView())
     bot.add_view(CloseTicketView())
+    check_anniversaires.start()
 
 # ─── COMMANDES FUN ──────────────────────────────────────────
 import urllib.request
