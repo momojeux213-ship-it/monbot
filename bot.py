@@ -276,4 +276,155 @@ async def on_ready():
     bot.add_view(TicketView())
     bot.add_view(CloseTicketView())
 
+# ─── COMMANDES FUN ──────────────────────────────────────────
+import urllib.request
+
+@bot.command()
+async def blague(ctx):
+    blagues = [
+        "Pourquoi les plongeurs plongent-ils toujours en arrière ? Parce que sinon ils tomberaient dans le bateau !",
+        "Un homme entre dans une bibliothèque et demande : 'Vous avez des livres sur la paranoïa ?' La bibliothécaire répond : 'Ils sont juste derrière vous !'",
+        "Qu'est-ce qu'un canif ? Un petit fien !",
+        "Pourquoi les informaticiens confondent-ils Halloween et Noël ? Parce que OCT 31 = DEC 25 !",
+        "Un escargot se fait écraser par une tortue. La police lui demande : 'Que s'est-il passé ?' Il répond : 'Je sais pas, ça allait trop vite !'",
+        "Qu'est-ce qu'un crocodile qui surveille la cour d'école ? Un sac à dents !",
+        "Pourquoi le scarabée a-t-il gagné la course ? Parce qu'il était dans la bonne scarabée !",
+        "Comment appelle-t-on un chat tombé dans un pot de peinture le jour de Noël ? Un chat-peint de Noël !",
+    ]
+    await ctx.send(f"😂 {random.choice(blagues)}")
+
+@bot.command(name="8ball")
+async def eight_ball(ctx, *, question: str):
+    reponses = [
+        "✅ Oui, absolument !",
+        "✅ C'est certain !",
+        "✅ Sans aucun doute !",
+        "✅ Très probablement !",
+        "🤔 Les signes pointent vers oui...",
+        "🤔 Je ne peux pas le dire maintenant.",
+        "🤔 Reconsidère la question.",
+        "❌ Ne compte pas là-dessus.",
+        "❌ Ma réponse est non.",
+        "❌ Les perspectives ne sont pas bonnes.",
+        "❌ Très peu probable.",
+    ]
+    em = discord.Embed(title="🎱 Magic 8-Ball", color=0x000080)
+    em.add_field(name="Question", value=question, inline=False)
+    em.add_field(name="Réponse", value=random.choice(reponses), inline=False)
+    await ctx.send(embed=em)
+
+@bot.command()
+async def pileouface(ctx):
+    resultat = random.choice(["🪙 PILE !", "🪙 FACE !"])
+    await ctx.send(f"{ctx.author.mention} — {resultat}")
+
+@bot.command()
+async def des(ctx, faces: int = 6):
+    resultat = random.randint(1, faces)
+    await ctx.send(f"🎲 {ctx.author.mention} a lancé un dé à {faces} faces : **{resultat}** !")
+
+@bot.command()
+async def choisir(ctx, *options):
+    if len(options) < 2:
+        await ctx.send("Donne-moi au moins 2 options ! Ex: `!choisir pizza burger sushi`")
+        return
+    choix = random.choice(options)
+    await ctx.send(f"🤔 J'ai choisi : **{choix}** !")
+
+@bot.command()
+async def compatibilite(ctx, membre: discord.Member):
+    score = random.randint(1, 100)
+    emoji = "💘" if score > 80 else "❤️" if score > 60 else "💔" if score < 30 else "🤔"
+    em = discord.Embed(title=f"{emoji} Compatibilité amoureuse", color=0xFF69B4)
+    em.description = f"{ctx.author.mention} + {membre.mention} = **{score}%** de compatibilité !"
+    bar = "█" * (score // 10) + "░" * (10 - score // 10)
+    em.add_field(name="Jauge", value=f"`{bar}` {score}%")
+    await ctx.send(embed=em)
+
+# ─── ANNIVERSAIRES ──────────────────────────────────────────
+birthdays = load_data("birthdays.json")
+
+@bot.command()
+async def anniversaire(ctx, date: str):
+    """Enregistre ton anniversaire. Format: JJ/MM ex: !anniversaire 25/12"""
+    try:
+        jour, mois = date.split("/")
+        int(jour); int(mois)
+        uid = str(ctx.author.id)
+        birthdays[uid] = {"date": date, "name": ctx.author.display_name}
+        save_data("birthdays.json", birthdays)
+        await ctx.send(f"🎂 Anniversaire enregistré le **{date}** pour {ctx.author.mention} !")
+    except:
+        await ctx.send("Format invalide ! Utilise `!anniversaire JJ/MM` ex: `!anniversaire 25/12`")
+
+@tasks.loop(hours=24)
+async def check_anniversaires():
+    today = datetime.datetime.now().strftime("%d/%m")
+    for guild in bot.guilds:
+        ch = discord.utils.get(guild.text_channels, name="général")
+        if not ch: continue
+        for uid, data in birthdays.items():
+            if data["date"] == today:
+                member = guild.get_member(int(uid))
+                if member:
+                    em = discord.Embed(title="🎂 Joyeux Anniversaire !", color=0xFFD700,
+                        description=f"Toute la communauté souhaite un joyeux anniversaire à {member.mention} ! 🥳🎉")
+                    await ch.send(embed=em)
+
+# ─── ANTI-SPAM & ANTI-INSULTES ──────────────────────────────
+message_counts = defaultdict(list)
+MOTS_INTERDITS = ["insulte1", "insulte2", "insulte3"]  # Ajoute tes mots interdits ici
+
+@bot.listen("on_message")
+async def anti_spam_insultes(message):
+    if message.author.bot: return
+    if message.author.guild_permissions.manage_messages: return
+
+    # Anti-insultes
+    contenu = message.content.lower()
+    for mot in MOTS_INTERDITS:
+        if mot in contenu:
+            await message.delete()
+            await message.channel.send(
+                f"⚠️ {message.author.mention} ce mot est interdit !", delete_after=5)
+            return
+
+    # Anti-spam (5 messages en 5 secondes)
+    uid = str(message.author.id)
+    now = datetime.datetime.now().timestamp()
+    message_counts[uid] = [t for t in message_counts[uid] if now - t < 5]
+    message_counts[uid].append(now)
+    if len(message_counts[uid]) >= 5:
+        await message.author.timeout(datetime.timedelta(minutes=2), reason="Spam détecté")
+        await message.channel.send(
+            f"🔇 {message.author.mention} a été muté 2 minutes pour spam !", delete_after=10)
+        message_counts[uid] = []
+
+# ─── MÉTÉO ──────────────────────────────────────────────────
+@bot.command(name="meteo")
+async def meteo(ctx, *, ville: str):
+    try:
+        ville_encoded = ville.replace(" ", "+")
+        url = f"https://wttr.in/{ville_encoded}?format=j1"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            data = json.loads(response.read().decode())
+        current = data["current_condition"][0]
+        temp = current["temp_C"]
+        ressenti = current["FeelsLikeC"]
+        desc = current["weatherDesc"][0]["value"]
+        humidite = current["humidity"]
+        vent = current["windspeedKmph"]
+        emojis = {"Sunny": "☀️", "Clear": "🌙", "Cloudy": "☁️", "Rain": "🌧️",
+                  "Snow": "❄️", "Thunder": "⛈️", "Fog": "🌫️", "Overcast": "☁️",
+                  "Partly": "⛅"}
+        emoji = next((v for k, v in emojis.items() if k.lower() in desc.lower()), "🌡️")
+        em = discord.Embed(title=f"{emoji} Météo à {ville.title()}", color=0x3498DB)
+        em.add_field(name="🌡️ Température", value=f"{temp}°C (ressenti {ressenti}°C)")
+        em.add_field(name="📋 Conditions", value=desc)
+        em.add_field(name="💧 Humidité", value=f"{humidite}%")
+        em.add_field(name="💨 Vent", value=f"{vent} km/h")
+        await ctx.send(embed=em)
+    except:
+        await ctx.send(f"❌ Impossible de trouver la météo pour **{ville}**. Vérifie le nom de la ville !")
+
 bot.run(os.getenv("DISCORD_TOKEN"))
