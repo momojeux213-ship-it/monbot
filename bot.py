@@ -514,5 +514,4 @@ async def serverstats(ctx):
 
     await ctx.send(embed=em)
 
-check_anniversaires.start()
 bot.run(os.getenv("DISCORD_TOKEN"))
