@@ -426,5 +426,92 @@ async def meteo(ctx, *, ville: str):
         await ctx.send(embed=em)
     except:
         await ctx.send(f"❌ Impossible de trouver la météo pour **{ville}**. Vérifie le nom de la ville !")
+# ─── STATISTIQUES MEMBRES ───────────────────────────────────
 
+@bot.command()
+async def stats(ctx, membre: discord.Member = None):
+    membre = membre or ctx.author
+    uid = str(membre.id)
+    d = xp_data.get(uid, {"xp": 0, "level": 0, "messages": 0})
+
+    # Calcul du temps sur le serveur
+    maintenant = datetime.datetime.now(datetime.timezone.utc)
+    rejoint_il_y_a = maintenant - membre.joined_at
+    jours = rejoint_il_y_a.days
+    heures = rejoint_il_y_a.seconds // 3600
+
+    # Calcul du temps sur Discord
+    sur_discord = maintenant - membre.created_at
+    jours_discord = sur_discord.days
+
+    # Classement XP
+    sorted_users = sorted(xp_data.items(), key=lambda x: x[1]["xp"], reverse=True)
+    rang = next((i+1 for i, (k, _) in enumerate(sorted_users) if k == uid), "?")
+
+    # Barre de progression XP
+    xp_actuel = d["xp"]
+    niveau = d["level"]
+    xp_prochain = ((niveau + 1) * 10) ** 2
+    xp_niveau = (niveau * 10) ** 2
+    progression = int(((xp_actuel - xp_niveau) / max(xp_prochain - xp_niveau, 1)) * 10)
+    barre = "█" * progression + "░" * (10 - progression)
+
+    # Rôle le plus haut
+    roles = [r for r in membre.roles if r.name != "@everyone"]
+    role_top = roles[-1].mention if roles else "Aucun"
+
+    em = discord.Embed(
+        title=f"📊 Profil de {membre.display_name}",
+        color=membre.color if membre.color.value != 0 else 0x5865F2
+    )
+    em.set_thumbnail(url=membre.display_avatar.url)
+
+    em.add_field(name="💬 Messages envoyés", value=f"**{d['messages']}** messages", inline=True)
+    em.add_field(name="⭐ Niveau XP", value=f"**Niveau {niveau}** ({xp_actuel} XP)", inline=True)
+    em.add_field(name="🏆 Classement", value=f"**#{rang}** sur le serveur", inline=True)
+    em.add_field(name="📈 Progression", value=f"`{barre}` vers niv.{niveau+1}", inline=False)
+    em.add_field(name="📅 Sur le serveur depuis", value=f"**{jours} jours** et {heures}h\n({membre.joined_at.strftime('%d/%m/%Y')})", inline=True)
+    em.add_field(name="🎂 Compte Discord créé", value=f"Il y a **{jours_discord} jours**\n({membre.created_at.strftime('%d/%m/%Y')})", inline=True)
+    em.add_field(name="🎭 Rôle principal", value=role_top, inline=True)
+    em.add_field(name="🆔 ID", value=f"`{membre.id}`", inline=True)
+
+    statut = {
+        discord.Status.online: "🟢 En ligne",
+        discord.Status.idle: "🟡 Absent",
+        discord.Status.dnd: "🔴 Ne pas déranger",
+        discord.Status.offline: "⚫ Hors ligne"
+    }
+    em.add_field(name="📡 Statut", value=statut.get(membre.status, "⚫ Inconnu"), inline=True)
+    em.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=em)
+
+@bot.command()
+async def serverstats(ctx):
+    g = ctx.guild
+    maintenant = datetime.datetime.now(datetime.timezone.utc)
+    age_serveur = maintenant - g.created_at
+
+    en_ligne = sum(1 for m in g.members if m.status != discord.Status.offline and not m.bot)
+    bots = sum(1 for m in g.members if m.bot)
+    humains = g.member_count - bots
+
+    em = discord.Embed(title=f"📊 Statistiques de {g.name}", color=0x5865F2)
+    em.set_thumbnail(url=g.icon.url if g.icon else "")
+
+    em.add_field(name="👥 Membres total", value=f"**{g.member_count}**", inline=True)
+    em.add_field(name="👤 Humains", value=f"**{humains}**", inline=True)
+    em.add_field(name="🤖 Bots", value=f"**{bots}**", inline=True)
+    em.add_field(name="🟢 En ligne maintenant", value=f"**{en_ligne}**", inline=True)
+    em.add_field(name="📝 Salons texte", value=f"**{len(g.text_channels)}**", inline=True)
+    em.add_field(name="🔊 Salons vocaux", value=f"**{len(g.voice_channels)}**", inline=True)
+    em.add_field(name="🎭 Rôles", value=f"**{len(g.roles)}**", inline=True)
+    em.add_field(name="😀 Emojis", value=f"**{len(g.emojis)}**", inline=True)
+    em.add_field(name="🚀 Boosts", value=f"**{g.premium_subscription_count}** (Niveau {g.premium_tier})", inline=True)
+    em.add_field(name="📅 Serveur créé", value=f"Il y a **{age_serveur.days} jours**\n({g.created_at.strftime('%d/%m/%Y')})", inline=False)
+    em.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=em)
+
+check_anniversaires.start()
 bot.run(os.getenv("DISCORD_TOKEN"))
