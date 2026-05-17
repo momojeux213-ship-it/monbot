@@ -276,4 +276,4 @@ async def on_ready():
     bot.add_view(TicketView())
     bot.add_view(CloseTicketView())
 
-bot.run("TOKEN")
+bot.run(os.getenv("DISCORD_TOKEN"))
