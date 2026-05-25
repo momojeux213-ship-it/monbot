@@ -114,6 +114,14 @@ async def mute(ctx, member: discord.Member, minutes: int=10, *, reason="Aucune r
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
+async def unmute(ctx, member: discord.Member):
+    await member.timeout(None)
+    em = discord.Embed(title="🔊 Unmute", color=0x2ECC71,
+        description=f"{member} démute par {ctx.author}")
+    await ctx.send(embed=em); await log_action(ctx.guild, em)
+
+@bot.command()
+@commands.has_permissions(moderate_members=True)
 async def warn(ctx, member: discord.Member, *, reason="Aucune raison"):
     uid = str(member.id)
     if uid not in warns_data: warns_data[uid] = []
