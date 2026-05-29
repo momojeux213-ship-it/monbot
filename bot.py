@@ -180,7 +180,6 @@ class CloseTicketView(discord.ui.View):
         await interaction.channel.delete()
 
 @bot.command()
-@commands.has_permissions(administrator=True)
 async def setup_ticket(ctx):
     em = discord.Embed(title="Support", description="Clique ci-dessous pour ouvrir un ticket.", color=0x5865F2)
     await ctx.send(embed=em, view=TicketView())
