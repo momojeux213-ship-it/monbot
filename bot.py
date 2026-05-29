@@ -458,4 +458,37 @@ async def on_ready():
     if not check_anniversaires.is_running():
         check_anniversaires.start()
 
+# ─── CONFESSIONS ────────────────────────────────────────────
+class ConfessionModal(discord.ui.Modal, title="💬 Confession anonyme"):
+    confession = discord.ui.TextInput(
+        label="Ta confession",
+        style=discord.TextStyle.long,
+        placeholder="Écris ta confession ici...",
+        required=True,
+        max_length=1000
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        ch = discord.utils.get(interaction.guild.text_channels, name="🎤confessions")
+        if not ch:
+            await interaction.response.send_message("Salon confessions introuvable!", ephemeral=True)
+            return
+        em = discord.Embed(title="💬 Confession anonyme", description=self.confession.value, color=0x9B59B6)
+        em.set_footer(text="Confession anonyme")
+        await ch.send(embed=em)
+        await interaction.response.send_message("✅ Ta confession a été envoyée anonymement!", ephemeral=True)
+
+class ConfessionView(discord.ui.View):
+    def __init__(self): super().__init__(timeout=None)
+
+    @discord.ui.button(label="Écrire une confession", style=discord.ButtonStyle.blurple, emoji="💬", custom_id="confession")
+    async def confession(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(ConfessionModal())
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_confession(ctx):
+    em = discord.Embed(title="💬 Confessions anonymes", description="Clique ci-dessous pour écrire une confession anonyme !", color=0x9B59B6)
+    await ctx.send(embed=em, view=ConfessionView())
+
 bot.run(os.getenv("DISCORD_TOKEN"))
