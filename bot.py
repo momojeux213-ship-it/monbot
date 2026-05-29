@@ -492,3 +492,5 @@ async def setup_confession(ctx):
     await ctx.send(embed=em, view=ConfessionView())
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
+
